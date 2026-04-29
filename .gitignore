@@ -1,0 +1,24 @@
+# Environments
+.venv/
+env/
+venv/
+
+# Datasets
+data/
+*.csv
+
+# Model Checkpoints and Artifacts
+artifacts/
+models/
+*.pt
+*.pth
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Logs
+logs/
