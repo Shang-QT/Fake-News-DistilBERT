@@ -3,10 +3,6 @@
 env/
 venv/
 
-# Datasets
-data/
-*.csv
-
 # Model Checkpoints and Artifacts
 artifacts/
 models/
