@@ -63,9 +63,7 @@ def download_file(file_id, output_path):
             try:
                 url = f"https://drive.google.com/uc?id={file_id}"
                 gdown.download(url, str(output_path), quiet=False)
-                if output_path.exists():
-                    st.success(f"✓ {output_path.name} downloaded!")
-                else:
+                if not output_path.exists():
                     st.error(f"Failed to download {output_path.name}.")
             except Exception as e:
                 st.error(f"Exception downloading {output_path.name}: {e}")
