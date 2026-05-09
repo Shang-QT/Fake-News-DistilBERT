@@ -34,8 +34,9 @@ DEVICE      = torch.device("cpu")
 MODEL_FILE_ID   = "1WSicJ_qp2FQC5d3e1aT-1qePjNQsWd1L"
 WEIGHTS_FILE_ID = "1bKrQf_GhoPl6O37EQVrTNpJc7lcY01Qh"
 
-MODEL_PATH   = Path("artifacts/models/distilbert_ph_fakenews.pth")
-WEIGHTS_PATH = Path("artifacts/checkpoints/class_weights.pt")
+BASE_DIR     = Path(__file__).parent
+MODEL_PATH   = BASE_DIR / "artifacts" / "models" / "distilbert_ph_fakenews.pth"
+WEIGHTS_PATH = BASE_DIR / "artifacts" / "checkpoints" / "class_weights.pt"
 
 # ── Model definition ──────────────────────────────────────────
 class DistilBertClassifier(nn.Module):
@@ -59,9 +60,15 @@ def download_file(file_id, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if not output_path.exists():
         with st.spinner(f"Downloading {output_path.name} from Google Drive..."):
-            url = f"https://drive.google.com/uc?id={file_id}"
-            gdown.download(url, str(output_path), quiet=False)
-            st.success(f"✓ {output_path.name} downloaded!")
+            try:
+                url = f"https://drive.google.com/uc?id={file_id}"
+                gdown.download(url, str(output_path), quiet=False)
+                if output_path.exists():
+                    st.success(f"✓ {output_path.name} downloaded!")
+                else:
+                    st.error(f"Failed to download {output_path.name}.")
+            except Exception as e:
+                st.error(f"Exception downloading {output_path.name}: {e}")
 
 # ── Load model (cached) ───────────────────────────────────────
 @st.cache_resource
@@ -153,11 +160,18 @@ def predict_text(text, model, tokenizer, max_chunks=5):
 
 # ── OCR extraction ────────────────────────────────────────────
 def extract_text(image):
-    return pytesseract.image_to_string(
-        image,
-        lang   = "eng",
-        config = "--oem 3 --psm 6"
-    )
+    try:
+        return pytesseract.image_to_string(
+            image,
+            lang   = "eng",
+            config = "--oem 3 --psm 6"
+        )
+    except pytesseract.TesseractNotFoundError:
+        st.error("Tesseract-OCR is not installed or not in PATH. Please make sure Tesseract is installed for image extraction to work.")
+        return ""
+    except Exception as e:
+        st.error(f"Error during OCR extraction: {e}")
+        return ""
 
 # ── Display result ────────────────────────────────────────────
 def show_result(result):
@@ -167,49 +181,93 @@ def show_result(result):
 
     confidence = result["confidence"]
 
+    # Styled Result Header
     if result["prediction"] == "CREDIBLE":
-        st.success("✅ CREDIBLE")
+        st.success("✅ **Classification: CREDIBLE**")
+        color = "green"
     elif confidence < 70:
-        st.warning("⚠️ UNCERTAIN — Low confidence, needs human review")
+        st.warning("⚠️ **Classification: UNCERTAIN** — Low confidence, needs human review")
+        color = "orange"
     else:
-        st.error("🚨 NOT CREDIBLE")
+        st.error("🚨 **Classification: NOT CREDIBLE**")
+        color = "red"
 
+    # Progress bar for confidence
+    st.markdown(f"**Confidence Score:** {confidence:.2f}%")
+    st.progress(int(confidence) / 100)
+
+    # Metrics layout
     col1, col2, col3 = st.columns(3)
     col1.metric("Confidence",  f"{confidence:.2f}%")
     col2.metric("Chunks Used", result["chunks_used"])
-    col3.metric("Status",      result["prediction"])
+    col3.metric("Prediction",  result["prediction"])
 
     if confidence < 70:
         st.info(
-            "💡 Low confidence detected. Try providing "
-            "more article text for a more accurate result."
+            "💡 **Low confidence detected.** The model didn't have enough strong signals. "
+            "Try providing more of the article text for a more accurate result."
         )
 
 # ────────────────────────────────────────────────────────────
-# UI
+# UI Configuration & Sidebar
 # ────────────────────────────────────────────────────────────
-st.title("🇵🇭 Philippine Fake News Detector")
-st.caption("DistilBERT + Tesseract OCR · 4th Year CS Thesis")
-st.divider()
 
-# Tips expander
-with st.expander("💡 Tips for best results"):
+# Custom CSS for better aesthetics
+st.markdown("""
+    <style>
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .stTextArea textarea {
+        font-size: 1.1rem;
+        border-radius: 8px;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        white-space: pre-wrap;
+        background-color: transparent;
+        border-radius: 4px 4px 0px 0px;
+        gap: 1px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/9/99/Flag_of_the_Philippines.svg", width=100)
+    st.title("About")
+    st.info(
+        "This tool uses an NLP model (DistilBERT) designed to classify the credibility of Philippine news articles. "
+        "It supports both raw text and screenshots via OCR."
+    )
+    
+    st.header("💡 Tips for Best Results")
     st.markdown("""
-    - Paste **at least 3 paragraphs** of article text
-    - For screenshots, **crop to article body only**
-    - Remove browser toolbars, sidebars, and comment sections
-    - Avoid screenshots with social media UI elements
-    - Longer text = more accurate prediction
+    - Paste **at least 3 paragraphs** of text
+    - Focus on the main body of the article
+    - Remove social media captions or sidebars
+    - **For images:** Crop purely to the text body
+    - Keep sentences continuous
     """)
+    st.divider()
+    st.caption("Developed with ❤️ using Streamlit & PyTorch")
+
+# Main Header
+st.title("🇵🇭 Philippine Fake News Detector")
+st.markdown("**AI-Powered verification using DistilBERT & Tesseract OCR**")
+st.divider()
 
 # Load model
-with st.spinner("Loading model..."):
+with st.spinner("Loading model resources into memory..."):
     model, tokenizer = load_model()
-st.success("✅ Model ready!")
-st.divider()
 
 # Input tabs
-tab1, tab2 = st.tabs(["📝 Paste Text", "🖼️ Upload Screenshot"])
+tab1, tab2 = st.tabs(["📝 Paste Text Base", "🖼️ Upload Screenshot (OCR)"])
 
 # ── Tab 1: Text input ─────────────────────────────────────────
 with tab1:
@@ -280,6 +338,5 @@ with tab2:
 st.divider()
 st.caption(
     "Philippine Fake News Detection System · "
-    "DistilBERT + Tesseract OCR · "
-    "4th Year CS Thesis · Davao City"
+    "DistilBERT + Tesseract OCR "
 )
