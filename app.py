@@ -17,7 +17,7 @@ from transformers import DistilBertModel, DistilBertTokenizer
 st.set_page_config(
     page_title = "PH Fake News Detector",
     page_icon  = "🇵🇭",
-    layout     = "centered"
+    layout     = "wide"
 )
 
 # ── Constants ─────────────────────────────────────────────────
@@ -259,99 +259,122 @@ st.divider()
 with st.spinner("Loading model resources into memory..."):
     model, tokenizer = load_ml_model()
 
-# Input tabs
-tab1, tab2 = st.tabs(["📝 Paste Text Base", "🖼️ Upload Screenshot (OCR)"])
+# Create wide columns for side-by-side layout
+input_col, result_col = st.columns([1.2, 1], gap="large")
 
-# ── Tab 1: Text input ─────────────────────────────────────────
-with tab1:
-    st.subheader("Paste a news article")
-    
-    if "text_input" not in st.session_state:
-        st.session_state["text_input"] = ""
+with input_col:
+    # Input tabs
+    tab1, tab2 = st.tabs(["📝 Paste Text Base", "🖼️ Upload Screenshot (OCR)"])
 
-    def clear_text():
-        st.session_state["text_input"] = ""
+    # ── Tab 1: Text input ─────────────────────────────────────────
+    with tab1:
+        st.subheader("Paste a news article")
+        
+        if "text_input" not in st.session_state:
+            st.session_state["text_input"] = ""
 
-    user_text = st.text_area(
-        label            = "Article text",
-        placeholder      = "Paste a Philippine news article here...",
-        height           = 250,
-        label_visibility = "collapsed",
-        key              = "text_input"
-    )
+        def clear_text():
+            st.session_state["text_input"] = ""
+            st.session_state.pop("analysis_result", None)
+            st.session_state.pop("cleaned_text", None)
+            st.session_state.pop("raw_text", None)
 
-    word_count = len(user_text.split()) if user_text else 0
-    st.caption(f"Word count: {word_count}")
+        user_text = st.text_area(
+            label            = "Article text",
+            placeholder      = "Paste a Philippine news article here...",
+            height           = 250,
+            label_visibility = "collapsed",
+            key              = "text_input"
+        )
 
-    if word_count < 30 and word_count > 0:
-        st.warning("⚠️ Text is very short — results may be inaccurate.")
+        word_count = len(user_text.split()) if user_text else 0
+        st.caption(f"Word count: {word_count}")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        analyze_text_clicked = st.button("🔍 Analyze Text", use_container_width=True, key="btn_text")
-    with col2:
-        st.button("🗑️ Clear Text", use_container_width=True, on_click=clear_text)
-
-    if analyze_text_clicked:
-        if not user_text.strip():
-            st.warning("Please paste some text first!")
-        else:
-            with st.spinner("Analyzing..."):
-                result = predict_text(user_text, model, tokenizer)
-            show_result(result)
-
-            with st.expander("🔎 Cleaned text sent to model"):
-                st.text(clean_text(user_text)[:500])
-
-# ── Tab 2: Image upload ───────────────────────────────────────
-with tab2:
-    st.subheader("Upload a news screenshot")
-    st.caption("Crop to article text only for best results")
-
-    if "file_uploader_key" not in st.session_state:
-        st.session_state["file_uploader_key"] = 0
-
-    def clear_image():
-        st.session_state["file_uploader_key"] += 1
-
-    uploaded = st.file_uploader(
-        label            = "Upload screenshot",
-        type             = ["png", "jpg", "jpeg"],
-        label_visibility = "collapsed",
-        key              = f"uploader_{st.session_state['file_uploader_key']}"
-    )
-
-    if uploaded:
-        image = Image.open(uploaded)
-        st.image(image, caption="Uploaded screenshot",
-                 use_column_width=True)
+        if word_count < 30 and word_count > 0:
+            st.warning("⚠️ Text is very short — results may be inaccurate.")
 
         col1, col2 = st.columns(2)
         with col1:
-            analyze_img_clicked = st.button("🔍 Analyze Image", use_container_width=True, key="btn_img")
+            analyze_text_clicked = st.button("🔍 Analyze Text", use_container_width=True, key="btn_text")
         with col2:
-            st.button("🗑️ Clear Image", use_container_width=True, on_click=clear_image)
+            st.button("🗑️ Clear Text", use_container_width=True, on_click=clear_text)
 
-        if analyze_img_clicked:
-            with st.spinner("Running OCR..."):
-                raw_text = extract_text(image)
-
-            ocr_words = len(raw_text.split())
-            st.caption(f"OCR extracted: {ocr_words} words")
-
-            with st.expander("📄 OCR extracted text"):
-                st.text(raw_text[:500])
-
-            if ocr_words < 30:
-                st.warning(
-                    "⚠️ Very little text extracted. "
-                    "Try a clearer or larger screenshot."
-                )
+        if analyze_text_clicked:
+            if not user_text.strip():
+                st.warning("Please paste some text first!")
             else:
                 with st.spinner("Analyzing..."):
-                    result = predict_text(raw_text, model, tokenizer)
-                result["ocr_words"] = ocr_words
-                show_result(result)
+                    result = predict_text(user_text, model, tokenizer)
+                    st.session_state["analysis_result"] = result
+                    st.session_state["cleaned_text"] = clean_text(user_text)
+                    st.session_state["raw_text"] = None
+
+    # ── Tab 2: Image upload ───────────────────────────────────────
+    with tab2:
+        st.subheader("Upload a news screenshot")
+        st.caption("Crop to article text only for best results")
+
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
+
+        def clear_image():
+            st.session_state["file_uploader_key"] += 1
+            st.session_state.pop("analysis_result", None)
+            st.session_state.pop("cleaned_text", None)
+            st.session_state.pop("raw_text", None)
+
+        uploaded = st.file_uploader(
+            label            = "Upload screenshot",
+            type             = ["png", "jpg", "jpeg"],
+            label_visibility = "collapsed",
+            key              = f"uploader_{st.session_state['file_uploader_key']}"
+        )
+
+        if uploaded:
+            image = Image.open(uploaded)
+            st.image(image, caption="Uploaded screenshot",
+                     use_column_width=True)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                analyze_img_clicked = st.button("🔍 Analyze Image", use_container_width=True, key="btn_img")
+            with col2:
+                st.button("🗑️ Clear Image", use_container_width=True, on_click=clear_image)
+
+            if analyze_img_clicked:
+                with st.spinner("Running OCR..."):
+                    raw_text = extract_text(image)
+
+                ocr_words = len(raw_text.split())
+                st.caption(f"OCR extracted: {ocr_words} words")
+
+                if ocr_words < 30:
+                    st.warning(
+                        "⚠️ Very little text extracted. "
+                        "Try a clearer or larger screenshot."
+                    )
+                else:
+                    with st.spinner("Analyzing..."):
+                        result = predict_text(raw_text, model, tokenizer)
+                        result["ocr_words"] = ocr_words
+                        st.session_state["analysis_result"] = result
+                        st.session_state["raw_text"] = raw_text
+                        st.session_state["cleaned_text"] = None
+
+with result_col:
+    st.subheader("📊 Analysis Results")
+    if st.session_state.get("analysis_result"):
+        show_result(st.session_state["analysis_result"])
+        
+        if st.session_state.get("cleaned_text"):
+            with st.expander("🔎 Cleaned text sent to model"):
+                st.text(st.session_state["cleaned_text"][:500])
+                
+        if st.session_state.get("raw_text"):
+            with st.expander("📄 OCR extracted text"):
+                st.text(st.session_state["raw_text"][:500])
+    else:
+        st.info("Awaiting input... Paste an article or upload an image and click analyze to see results here.")
 
 # ── Footer ────────────────────────────────────────────────────
 st.divider()
