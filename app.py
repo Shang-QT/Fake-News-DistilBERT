@@ -265,11 +265,19 @@ tab1, tab2 = st.tabs(["📝 Paste Text Base", "🖼️ Upload Screenshot (OCR)"]
 # ── Tab 1: Text input ─────────────────────────────────────────
 with tab1:
     st.subheader("Paste a news article")
+    
+    if "text_input" not in st.session_state:
+        st.session_state["text_input"] = ""
+
+    def clear_text():
+        st.session_state["text_input"] = ""
+
     user_text = st.text_area(
         label            = "Article text",
         placeholder      = "Paste a Philippine news article here...",
         height           = 250,
-        label_visibility = "collapsed"
+        label_visibility = "collapsed",
+        key              = "text_input"
     )
 
     word_count = len(user_text.split()) if user_text else 0
@@ -278,7 +286,13 @@ with tab1:
     if word_count < 30 and word_count > 0:
         st.warning("⚠️ Text is very short — results may be inaccurate.")
 
-    if st.button("🔍 Analyze Text", use_container_width=True, key="btn_text"):
+    col1, col2 = st.columns(2)
+    with col1:
+        analyze_text_clicked = st.button("🔍 Analyze Text", use_container_width=True, key="btn_text")
+    with col2:
+        st.button("🗑️ Clear Text", use_container_width=True, on_click=clear_text)
+
+    if analyze_text_clicked:
         if not user_text.strip():
             st.warning("Please paste some text first!")
         else:
@@ -294,10 +308,17 @@ with tab2:
     st.subheader("Upload a news screenshot")
     st.caption("Crop to article text only for best results")
 
+    if "file_uploader_key" not in st.session_state:
+        st.session_state["file_uploader_key"] = 0
+
+    def clear_image():
+        st.session_state["file_uploader_key"] += 1
+
     uploaded = st.file_uploader(
         label            = "Upload screenshot",
         type             = ["png", "jpg", "jpeg"],
-        label_visibility = "collapsed"
+        label_visibility = "collapsed",
+        key              = f"uploader_{st.session_state['file_uploader_key']}"
     )
 
     if uploaded:
@@ -305,8 +326,13 @@ with tab2:
         st.image(image, caption="Uploaded screenshot",
                  use_column_width=True)
 
-        if st.button("🔍 Analyze Image",
-                     use_container_width=True, key="btn_img"):
+        col1, col2 = st.columns(2)
+        with col1:
+            analyze_img_clicked = st.button("🔍 Analyze Image", use_container_width=True, key="btn_img")
+        with col2:
+            st.button("🗑️ Clear Image", use_container_width=True, on_click=clear_image)
+
+        if analyze_img_clicked:
             with st.spinner("Running OCR..."):
                 raw_text = extract_text(image)
 
