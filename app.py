@@ -258,7 +258,7 @@ with st.sidebar:
     st.caption("Developed with ❤️ using Streamlit & PyTorch")
 
 # Main Header
-st.title("🇵🇭 Philippine Fake News Detector")
+st.title("Philippine Fake News Detector")
 st.markdown("**AI-Powered verification using DistilBERT & Tesseract OCR**")
 st.divider()
 
