@@ -1,8 +1,3 @@
-# ============================================================
-# app.py — Philippine Fake News Detector
-# DistilBERT + Tesseract OCR | Streamlit App
-# ============================================================
-
 import os
 import re
 import sys
@@ -69,8 +64,8 @@ def download_file(file_id, output_path):
                 st.error(f"Exception downloading {output_path.name}: {e}")
 
 # ── Load model (cached) ───────────────────────────────────────
-@st.cache_resource
-def load_model():
+@st.cache_resource(show_spinner=False, hash_funcs={"_main": id})
+def load_ml_model():
     download_file(MODEL_FILE_ID,   MODEL_PATH)
     download_file(WEIGHTS_FILE_ID, WEIGHTS_PATH)
 
@@ -262,7 +257,7 @@ st.divider()
 
 # Load model
 with st.spinner("Loading model resources into memory..."):
-    model, tokenizer = load_model()
+    model, tokenizer = load_ml_model()
 
 # Input tabs
 tab1, tab2 = st.tabs(["📝 Paste Text Base", "🖼️ Upload Screenshot (OCR)"])
