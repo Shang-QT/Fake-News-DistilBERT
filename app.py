@@ -30,8 +30,8 @@ MODEL_FILE_ID   = "1HmF0iwNRT3Rf-KVgCo0YeIyzqUqGShGe"
 WEIGHTS_FILE_ID = "1RW3HjGuCm8aav5_wU2_D7uC7Fhm927Jn"
 
 BASE_DIR     = Path(__file__).parent
-MODEL_PATH   = BASE_DIR / "artifacts" / "models" / "distilbert_ph_fakenews_v3.pth"
-WEIGHTS_PATH = BASE_DIR / "artifacts" / "checkpoints" / "class_weights_v3.pt"
+MODEL_PATH   = BASE_DIR / "artifacts" / "models" / "distilbert_ph_fakenews.pth"
+WEIGHTS_PATH = BASE_DIR / "artifacts" / "checkpoints" / "class_weights.pt"
 
 # ── Model definition ──────────────────────────────────────────
 class DistilBertClassifier(nn.Module):
